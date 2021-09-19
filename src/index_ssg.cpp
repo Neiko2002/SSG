@@ -324,7 +324,7 @@ void IndexSSG::Link(const Parameters &parameters, SimpleNeighbor *cut_graph_) {
     // unsigned cnt = 0;
     std::vector<Neighbor> pool, tmp;
 #pragma omp for schedule(dynamic, 100)
-    for (unsigned n = 0; n < nd_; ++n) {
+    for (int64_t n = 0; n < nd_; ++n) {
       pool.clear();
       tmp.clear();
       get_neighbors(n, parameters, pool);
@@ -339,7 +339,7 @@ void IndexSSG::Link(const Parameters &parameters, SimpleNeighbor *cut_graph_) {
     }
 
 #pragma omp for schedule(dynamic, 100)
-    for (unsigned n = 0; n < nd_; ++n) {
+    for (int64_t n = 0; n < nd_; ++n) {
       InterInsert(n, range, threshold, locks, cut_graph_);
     }
   }
@@ -650,7 +650,7 @@ void IndexSSG::strong_connect(const Parameters &parameter) {
   std::mutex edge_lock;
 
 #pragma omp parallel for
-  for (unsigned nt = 0; nt < n_try; nt++) {
+  for (int64_t nt = 0; nt < n_try; nt++) {
     unsigned root = rand() % nd_;
     boost::dynamic_bitset<> flags{nd_, 0};
     unsigned unlinked_cnt = 0;
@@ -700,13 +700,15 @@ void IndexSSG::DFS_expand(const Parameters &parameter) {
   for(unsigned i=0; i<nd_; i++){
     ids[i]=i;
   }
-  std::random_shuffle(ids.begin(), ids.end());
+  std::random_device rd;
+  std::mt19937 gen{rd()};
+  std::shuffle(ids.begin(), ids.end(), gen);
   for(unsigned i=0; i<n_try; i++){
     eps_.push_back(ids[i]);
     //std::cout << eps_[i] << '\n';
   }
 #pragma omp parallel for
-  for(unsigned i=0; i<n_try; i++){
+  for(int64_t i=0; i<n_try; i++){
     unsigned rootid = eps_[i];
     boost::dynamic_bitset<> flags{nd_, 0};
     std::queue<unsigned> myqueue;

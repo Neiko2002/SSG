@@ -5,7 +5,11 @@
 #ifndef EFANNA2E_DISTANCE_H
 #define EFANNA2E_DISTANCE_H
 
+#ifdef _MSC_VER
+#include <intrin.h>
+#else
 #include <x86intrin.h>
+#endif
 #include <iostream>
 namespace efanna2e {
 enum Metric { L2 = 0, INNER_PRODUCT = 1, FAST_L2 = 2, PQ = 3 };
@@ -21,7 +25,6 @@ class DistanceL2 : public Distance {
   float compare(const float *a, const float *b, unsigned size) const {
     float result = 0;
 
-#ifdef __GNUC__
 #ifdef __AVX__
 
 #define AVX_L2SQR(addr1, addr2, dest, tmp1, tmp2) \
@@ -41,7 +44,7 @@ class DistanceL2 : public Distance {
     const float *r = b;
     const float *e_l = l + DD;
     const float *e_r = r + DD;
-    float unpack[8] __attribute__((aligned(32))) = {0, 0, 0, 0, 0, 0, 0, 0};
+    alignas(32) float unpack[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
     sum = _mm256_loadu_ps(unpack);
     if (DR) {
@@ -75,7 +78,7 @@ class DistanceL2 : public Distance {
     const float *r = b;
     const float *e_l = l + DD;
     const float *e_r = r + DD;
-    float unpack[4] __attribute__((aligned(16))) = {0, 0, 0, 0};
+    alignas(16) float unpack[4] = {0, 0, 0, 0};
 
     sum = _mm_load_ps(unpack);
     switch (DR) {
@@ -121,7 +124,6 @@ class DistanceL2 : public Distance {
     }
 #endif
 #endif
-#endif
 
     return result;
   }
@@ -131,7 +133,6 @@ class DistanceInnerProduct : public Distance {
  public:
   float compare(const float *a, const float *b, unsigned size) const {
     float result = 0;
-#ifdef __GNUC__
 #ifdef __AVX__
 #define AVX_DOT(addr1, addr2, dest, tmp1, tmp2) \
   tmp1 = _mm256_loadu_ps(addr1);                \
@@ -149,7 +150,7 @@ class DistanceInnerProduct : public Distance {
     const float *r = b;
     const float *e_l = l + DD;
     const float *e_r = r + DD;
-    float unpack[8] __attribute__((aligned(32))) = {0, 0, 0, 0, 0, 0, 0, 0};
+    alignas(32) float unpack[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
     sum = _mm256_loadu_ps(unpack);
     if (DR) {
@@ -181,7 +182,7 @@ class DistanceInnerProduct : public Distance {
     const float *r = b;
     const float *e_l = l + DD;
     const float *e_r = r + DD;
-    float unpack[4] __attribute__((aligned(16))) = {0, 0, 0, 0};
+    alignas(16) float unpack[4] = {0, 0, 0, 0};
 
     sum = _mm_load_ps(unpack);
     switch (DR) {
@@ -224,7 +225,6 @@ class DistanceInnerProduct : public Distance {
     }
 #endif
 #endif
-#endif
     return result;
   }
 };
@@ -232,7 +232,6 @@ class DistanceFastL2 : public DistanceInnerProduct {
  public:
   float norm(const float *a, unsigned size) const {
     float result = 0;
-#ifdef __GNUC__
 #ifdef __AVX__
 #define AVX_L2NORM(addr, dest, tmp) \
   tmp = _mm256_loadu_ps(addr);      \
@@ -246,7 +245,7 @@ class DistanceFastL2 : public DistanceInnerProduct {
     unsigned DD = D - DR;
     const float *l = a;
     const float *e_l = l + DD;
-    float unpack[8] __attribute__((aligned(32))) = {0, 0, 0, 0, 0, 0, 0, 0};
+    alignas(32) float unpack[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
     sum = _mm256_loadu_ps(unpack);
     if (DR) {
@@ -273,7 +272,7 @@ class DistanceFastL2 : public DistanceInnerProduct {
     unsigned DD = D - DR;
     const float *l = a;
     const float *e_l = l + DD;
-    float unpack[4] __attribute__((aligned(16))) = {0, 0, 0, 0};
+    alignas(16) float unpack[4] = {0, 0, 0, 0};
 
     sum = _mm_load_ps(unpack);
     switch (DR) {
@@ -313,7 +312,6 @@ class DistanceFastL2 : public DistanceInnerProduct {
       result += (*a) * (*a);
       a++;
     }
-#endif
 #endif
 #endif
     return result;

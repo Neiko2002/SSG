@@ -1,0 +1,8 @@
+{
+    "name": "ssg",
+    "version-string": "1.0.0",
+    "dependencies": [
+        "boost-dynamic-bitset",
+        "pybind11"
+    ]
+}

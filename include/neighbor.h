@@ -7,12 +7,12 @@
 #ifndef EFANNA2E_GRAPH_H
 #define EFANNA2E_GRAPH_H
 
-#include <pthread.h>
 #include <cstddef>
 #include <cstring>
 #include <mutex>
 #include <random>
 #include <vector>
+#include <iterator>
 
 #include "util.h"
 
@@ -34,8 +34,7 @@ struct Neighbor {
 
 typedef std::lock_guard<std::mutex> LockGuard;
 struct nhood {
-  // std::mutex lock;
-  pthread_mutex_t lock;
+  std::mutex lock;
   std::vector<Neighbor> pool;
   unsigned M;
 
@@ -51,7 +50,6 @@ struct nhood {
     GenRandom(rng, &nn_new[0], (unsigned)nn_new.size(), N);
     nn_new.reserve(s * 2);
     pool.reserve(l);
-    pthread_mutex_init(&lock, NULL);
   }
 
   nhood(const nhood &other) {
@@ -62,15 +60,12 @@ struct nhood {
     pool.reserve(other.pool.capacity());
   }
   void insert(unsigned id, float dist) {
-    // LockGuard guard(lock);
-    pthread_mutex_lock(&lock);
+    LockGuard guard(lock);
     if (dist > pool.front().distance) {
-      pthread_mutex_unlock(&lock);
       return;
     }
     for (unsigned i = 0; i < pool.size(); i++) {
       if (id == pool[i].id) {
-        pthread_mutex_unlock(&lock);
         return;
       }
     }
@@ -82,7 +77,6 @@ struct nhood {
       pool[pool.size() - 1] = Neighbor(id, dist, true);
       std::push_heap(pool.begin(), pool.end());
     }
-    pthread_mutex_unlock(&lock);
   }
 
   template <typename C>
@@ -101,8 +95,7 @@ struct nhood {
 };
 
 struct LockNeighbor {
-  // std::mutex lock;
-  pthread_mutex_t lock;
+  std::mutex lock;
   std::vector<Neighbor> pool;
 };
 
