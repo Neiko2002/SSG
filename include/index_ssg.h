@@ -28,11 +28,13 @@ class IndexSSG : public Index {
   virtual void Build(size_t n, const float *data,
                      const Parameters &parameters) override;
 
-  virtual void Search(const float *query, const float *x, size_t k,
-                      const Parameters &parameters, unsigned *indices) override;
-  void SearchWithOptGraph(const float *query, size_t K,
-                          const Parameters &parameters, unsigned *indices);
+  virtual void Search(const float *query, const float *x, size_t k, const Parameters &parameters, unsigned *indices) override;
+  void SearchWithOptGraph(const float *query, size_t K, const Parameters &parameters, unsigned *indices);
   void OptimizeGraph(const float *data);
+
+  std::vector<std::vector<unsigned>>& getCompactGraph() {
+    return final_graph_;
+  }
 
  protected:
   typedef std::vector<std::vector<unsigned>> CompactGraph;

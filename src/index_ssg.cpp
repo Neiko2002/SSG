@@ -306,13 +306,13 @@ void IndexSSG::InterInsert(unsigned n, unsigned range, float threshold,
 }
 
 void IndexSSG::Link(const Parameters &parameters, SimpleNeighbor *cut_graph_) {
-  /*
+  
   std::cerr << "Graph Link" << std::endl;
   unsigned progress = 0;
   unsigned percent = 100;
   unsigned step_size = nd_ / percent;
   std::mutex progress_lock;
-  */
+  
   unsigned range = parameters.Get<unsigned>("R");
   std::vector<std::mutex> locks(nd_);
 
@@ -321,7 +321,7 @@ void IndexSSG::Link(const Parameters &parameters, SimpleNeighbor *cut_graph_) {
 
 #pragma omp parallel
   {
-    // unsigned cnt = 0;
+    unsigned cnt = 0;
     std::vector<Neighbor> pool, tmp;
 #pragma omp for schedule(dynamic, 100)
     for (int64_t n = 0; n < nd_; ++n) {
@@ -329,13 +329,12 @@ void IndexSSG::Link(const Parameters &parameters, SimpleNeighbor *cut_graph_) {
       tmp.clear();
       get_neighbors(n, parameters, pool);
       sync_prune(n, pool, parameters, threshold, cut_graph_);
-      /*
+      
       cnt++;
       if (cnt % step_size == 0) {
         LockGuard g(progress_lock);
         std::cout << progress++ << "/" << percent << " completed" << std::endl;
       }
-      */
     }
 
 #pragma omp for schedule(dynamic, 100)
@@ -408,9 +407,9 @@ void IndexSSG::Build(size_t n, const float *data,
   has_built = true;
 }
 
-void IndexSSG::Search(const float *query, const float *x, size_t K,
-                      const Parameters &parameters, unsigned *indices) {
-  const unsigned L = parameters.Get<unsigned>("L_search");
+void IndexSSG::Search(const float *query, const float *x, size_t K, const Parameters &parameters, unsigned *indices) {
+  unsigned L = parameters.Get<unsigned>("L_search");
+
   data_ = x;
   std::vector<Neighbor> retset(L + 1);
   std::vector<unsigned> init_ids(L);
@@ -422,12 +421,22 @@ void IndexSSG::Search(const float *query, const float *x, size_t K,
     init_ids[i] = eps_[i];
   }
 
-  for (unsigned i = 0; i < L; i++) {
+  // prefetch the features of the init ids
+  for (unsigned i = 0; i < init_ids.size(); i++) {
     unsigned id = init_ids[i];
-    float dist = distance_->compare(data_ + dimension_ * id, query,
-                                    (unsigned)dimension_);
+    if (id >= nd_) continue;
+    _mm_prefetch(reinterpret_cast<const char*>(data_ + dimension_ * id), _MM_HINT_T0);
+  }
+
+  // compute the distance of the init nodes to the query
+  L = 0;
+  for (unsigned i = 0; i < init_ids.size(); i++) {
+    unsigned id = init_ids[i];
+    if (id >= nd_) continue;
+    float dist = distance_->compare(data_ + dimension_ * id, query, (unsigned)dimension_);
     retset[i] = Neighbor(id, dist, true);
     flags[id] = true;
+    L++; // recompute L based on the amount of init nodes since there might not be enough nodes
   }
 
   std::sort(retset.begin(), retset.begin() + L);
@@ -437,16 +446,25 @@ void IndexSSG::Search(const float *query, const float *x, size_t K,
 
     if (retset[k].flag) {
       retset[k].flag = false;
-      unsigned n = retset[k].id;
+      auto id = retset[k].id;
+      auto neighbors = final_graph_[id];
+      unsigned MaxM = neighbors.size();
 
-      for (unsigned m = 0; m < final_graph_[n].size(); ++m) {
-        unsigned id = final_graph_[n][m];
-        if (flags[id]) continue;
-        flags[id] = 1;
-        float dist = distance_->compare(query, data_ + dimension_ * id,
-                                        (unsigned)dimension_);
+      // prefetch neighbor idds
+      _mm_prefetch(reinterpret_cast<const char*>(neighbors.data()), _MM_HINT_T0);      
+      for (unsigned m = 0; m < MaxM; ++m)
+        _mm_prefetch(reinterpret_cast<const char*>(data_ + dimension_ * neighbors[m]), _MM_HINT_T0); // prefetch neighbor features
+
+      // iterate all neighbors
+      for (unsigned m = 0; m < MaxM; ++m) {
+        unsigned neighbor_id = neighbors[m];
+        if (flags[neighbor_id]) continue;
+        flags[neighbor_id] = 1;
+
+        // compute distance from query to neighbor
+        float dist = distance_->compare(query, data_ + dimension_ * neighbor_id, (unsigned)dimension_);
         if (dist >= retset[L - 1].distance) continue;
-        Neighbor nn(id, dist, true);
+        Neighbor nn(neighbor_id, dist, true);
         int r = InsertIntoPool(retset.data(), L, nn);
 
         if (r < nk) nk = r;
@@ -462,9 +480,7 @@ void IndexSSG::Search(const float *query, const float *x, size_t K,
   }
 }
 
-void IndexSSG::SearchWithOptGraph(const float *query, size_t K,
-                                  const Parameters &parameters,
-                                  unsigned *indices) {
+void IndexSSG::SearchWithOptGraph(const float *query, size_t K, const Parameters &parameters, unsigned *indices) {
   unsigned L = parameters.Get<unsigned>("L_search");
   DistanceFastL2 *dist_fast = (DistanceFastL2 *)distance_;
 

@@ -3,3 +3,13 @@ target_link_libraries(test_ssg_index PRIVATE ${PROJECT_NAME})
 
 add_executable(test_ssg_optimized_search test_ssg_optimized_search.cpp)
 target_link_libraries(test_ssg_optimized_search PRIVATE ${PROJECT_NAME})
+
+add_executable(test_ssg_index_sift1m test_ssg_index_sift1m.cpp)
+target_link_libraries(test_ssg_index_sift1m PRIVATE ${PROJECT_NAME})
+
+add_executable(test_ssg_index_sift1m_evaluation test_ssg_index_sift1m_evaluation.cpp)
+target_link_libraries(test_ssg_index_sift1m_evaluation PRIVATE ${PROJECT_NAME})
+
+add_executable(test_ssg_index_sift1m_stats test_ssg_index_sift1m_stats.cpp)
+target_link_libraries(test_ssg_index_sift1m_stats PRIVATE ${PROJECT_NAME})
+
